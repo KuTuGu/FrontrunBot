@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.13;
 
-import "forge-std/Script.sol";
+import "../lib/forge-std/src/Script.sol";
 
 contract CounterScript is Script {
     function setUp() public {}
