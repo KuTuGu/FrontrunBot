@@ -1,6 +1,11 @@
 # Compiler files
 cache/
 out/
+output/
+lcov.info
+
+# rust target
+/target
 
 # Ignores development broadcast logs
 !/broadcast
