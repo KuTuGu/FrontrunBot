@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.13;
-pragma abicoder v2;
 
 import "solmate/auth/Owned.sol";
 import "solmate/utils/SafeTransferLib.sol";

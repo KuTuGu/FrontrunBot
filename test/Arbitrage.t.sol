@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.13;
-pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import "../src/Arbitrage.sol";
