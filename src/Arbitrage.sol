@@ -117,14 +117,13 @@ contract Arbitrage is Owned, IERC3156FlashBorrower {
     }
 
     function onFlashLoan(
-        address initiator,
+        address /* initiator */,
         address token,
         uint256 amount,
         uint256 fee,
         bytes calldata data
     ) public returns (bytes32) {
         if (msg.sender != flashLender) revert FlashLenderCall();
-        if (initiator != owner) revert Unauthorized();
 
         uint256 _allowance = IERC20(token).allowance(address(this), msg.sender);
         IERC20(token).approve(msg.sender, _allowance + amount + fee);

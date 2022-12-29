@@ -25,7 +25,7 @@ interface IPair {
     function sync() external;
 }
 
-contract PocTest is Test {
+contract BGLDPocTest is Test {
     struct Fee {
         uint16 burn;
         uint16 mine;
@@ -38,7 +38,6 @@ contract PocTest is Test {
     IPair public lp;
     IRouter public router;
     Fee public fee;
-
 
     function setUp() public {
         // 0xea108fe94bfc9a71bb3e4dee4a1b0fd47572e6ad6aba8b2155ac44861be628ae
@@ -67,7 +66,7 @@ contract PocTest is Test {
         arbitrage.run(data);
     }
 
-    function testPocByOwner() public {
+    function testBGLDPocByOwner() public {
         uint256 lend_amount = 125 ether;
         (uint256 reverse0, uint256 reverse1, ) = lp.getReserves();
         address wbnb = lp.token0();

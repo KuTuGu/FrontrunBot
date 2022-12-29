@@ -2,6 +2,7 @@
 cache/
 out/
 output/
+broadcast/
 lcov.info
 
 # rust target

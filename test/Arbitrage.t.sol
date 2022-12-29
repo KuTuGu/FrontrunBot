@@ -89,7 +89,7 @@ contract ArbitrageTest is Test {
         arbitrage.recoverERC20(address(0));
     }
 
-    fallback() external payable {}
+    receive() external payable {}
 }
 
 contract FakeERC20 is ERC20, Owned {
@@ -116,7 +116,7 @@ contract FlashLender is IERC3156FlashLender {
         return IERC20(token).balanceOf(address(this));
     }
 
-    function flashFee(address token, uint256 amount) public view returns (uint256) {
+    function flashFee(address /* token */, uint256 amount) public pure returns (uint256) {
         return amount / 1000;
     }
 
