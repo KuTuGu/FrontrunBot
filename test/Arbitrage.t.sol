@@ -39,6 +39,12 @@ contract ArbitrageTest is Test {
         vm.expectRevert(SufficientIncome.selector);
         arbitrage.run(abi.encode(bytes32(""), 0, bytes("")));
     }
+    function testCannotRunNoCheckByNotOwner() public TestCannotOperateByNotOwner {
+        arbitrage.run_no_check(bytes(""));
+    }
+    function testRunNoCheckByOwner() public {
+        arbitrage.run_no_check(bytes(""));
+    }
     function testFlashArbitrageByOwner() public {
         uint256 _lenderAmount = 1000 ether;
 

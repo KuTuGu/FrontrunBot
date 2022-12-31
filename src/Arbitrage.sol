@@ -92,28 +92,12 @@ contract Arbitrage is Owned, IERC3156FlashBorrower {
         flashLender = _lender;
     }
 
-    function _arbitrage(bytes calldata data) internal {
-        uint256 balance_before = address(this).balance;
-
-        // parse data
-        (bytes32 _parentHash, uint256 _coinbaseFee, bytes[] memory _multicallData) = abi.decode(data, (bytes32, uint256, bytes[]));
-        if ((_parentHash != bytes32("")) && (blockhash(block.number - 1) != _parentHash)) revert UncleBlock();
-
-        // multicall
-        for (uint256 i = 0; i < _multicallData.length; i++) {
-            (address _to, uint256 _value, bytes memory _data) = abi.decode(_multicallData[i], (address, uint256, bytes));
-            _to.call{ value: _value }(_data);
-        }
-
-        block.coinbase.transfer(_coinbaseFee);
-        uint256 balance_after = address(this).balance;
-        // onFlashLoan only checks the ETH balance, not ERC20.
-        // Recommend switch to ETH after each arbitrage.
-        if (balance_after <= balance_before) revert SufficientIncome();
-    }
-
     function run(bytes calldata data) external onlyOwner {
         _arbitrage(data);
+    }
+
+    function run_no_check(bytes calldata data) external onlyOwner {
+        _exec(data);
     }
 
     function onFlashLoan(
@@ -142,4 +126,29 @@ contract Arbitrage is Owned, IERC3156FlashBorrower {
     }
 
     receive() external payable {}
+
+    function _arbitrage(bytes calldata data) internal {
+        uint256 balance_before = address(this).balance;
+        _exec(data);
+        uint256 balance_after = address(this).balance;
+        // onFlashLoan only checks the ETH balance, not ERC20.
+        // Recommend switch to ETH after each arbitrage.
+        if (balance_after <= balance_before) revert SufficientIncome();
+    }
+
+    function _exec(bytes calldata data) internal {
+        if (data.length > 0) {
+            // parse data
+            (bytes32 _parentHash, uint256 _coinbaseFee, bytes[] memory _multicallData) = abi.decode(data, (bytes32, uint256, bytes[]));
+            if ((_parentHash != bytes32("")) && (blockhash(block.number - 1) != _parentHash)) revert UncleBlock();
+
+            // multicall
+            for (uint256 i = 0; i < _multicallData.length; i++) {
+                (address _to, uint256 _value, bytes memory _data) = abi.decode(_multicallData[i], (address, uint256, bytes));
+                _to.call{ value: _value }(_data);
+            }
+
+            block.coinbase.transfer(_coinbaseFee);
+        }
+    }
 }
