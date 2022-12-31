@@ -17,7 +17,7 @@ contract LoanPocTest is Test {
         weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     }
 
-    function testLoanPocByOwner() public {
+    function testPocLoan() public {
         uint256 balance_before = address(this).balance;
         uint256 exploit_amount = IERC20(weth).balanceOf(exploit);
 
