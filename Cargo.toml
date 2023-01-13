@@ -1,0 +1,36 @@
+[package]
+name = "arbitrage"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name="utils"
+path = "bot/utils/index.rs"
+test = true
+doctest = true
+bench = true
+doc = true
+
+[[bin]]
+name = "frontrun"
+path = "bot/frontrun.rs"
+test = true
+doctest = true
+doc = true
+
+[[test]]
+name = "frontrun_test"
+path = "bot/tests/frontrun_test.rs"
+test = true
+doctest = true
+doc = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ethers={ version = "1.0.2", features = ["ws", "rustls", "legacy"] }
+ethers-flashbots = { version = "0.12.1" }
+dotenv = { version = "0.15.0", features = ["cli"] }
+futures = "0.3.25"
+tokio = "1.22.0"
+url = "2.3.1"
