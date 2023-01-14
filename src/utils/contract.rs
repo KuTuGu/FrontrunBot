@@ -4,15 +4,15 @@ use std::error::Error;
 use std::ops::Deref;
 use std::sync::Arc;
 
-abigen!(Arbitrage, "out/Arbitrage.sol/Arbitrage.json");
+abigen!(ArbitrageContract, "out/Arbitrage.sol/Arbitrage.json");
 
 pub struct ArbitrageUtil<'a, M, S> {
-    inner: Arbitrage<&'a SignerMiddleware<M, S>>,
+    inner: ArbitrageContract<&'a SignerMiddleware<M, S>>,
     client: &'a SignerMiddleware<M, S>,
 }
 
 impl<'a, M, S> Deref for ArbitrageUtil<'a, M, S> {
-    type Target = Arbitrage<&'a SignerMiddleware<M, S>>;
+    type Target = ArbitrageContract<&'a SignerMiddleware<M, S>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -22,7 +22,7 @@ impl<'a, M, S> Deref for ArbitrageUtil<'a, M, S> {
 impl<'a, M: Middleware, S: Signer> ArbitrageUtil<'a, M, S> {
     pub fn init(client: &'a SignerMiddleware<M, S>, contract: Address) -> Self {
         Self {
-            inner: Arbitrage::new(contract, Arc::new(client)),
+            inner: ArbitrageContract::new(contract, Arc::new(client)),
             client,
         }
     }
@@ -31,7 +31,7 @@ impl<'a, M: Middleware, S: Signer> ArbitrageUtil<'a, M, S> {
         client: &'a SignerMiddleware<M, S>,
     ) -> Result<ArbitrageUtil<'a, M, S>, Box<dyn Error + 'a>> {
         Ok(Self {
-            inner: Arbitrage::deploy(Arc::new(client.clone()), ())
+            inner: ArbitrageContract::deploy(Arc::new(client.clone()), ())
                 .unwrap()
                 .send()
                 .await?,

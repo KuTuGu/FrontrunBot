@@ -1,8 +1,6 @@
+use arbitrage::utils::*;
 use dotenv::dotenv;
 use ethers::{prelude::*, utils::Anvil};
-use utils::*;
-
-abigen!(Arbitrage, "out/Arbitrage.sol/Arbitrage.json");
 
 #[tokio::test]
 async fn frontrun() {

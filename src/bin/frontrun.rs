@@ -1,10 +1,6 @@
-extern crate dotenv;
-extern crate ethers;
-extern crate utils;
-
+use arbitrage::utils::*;
 use dotenv::dotenv;
 use ethers::prelude::*;
-use utils::*;
 
 #[tokio::main]
 async fn main() {
