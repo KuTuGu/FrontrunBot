@@ -41,32 +41,29 @@ impl<'a, M: Middleware, S: Signer> ArbitrageUtil<'a, M, S> {
 
     pub async fn to_tx<T: Into<TypedTransaction>>(
         &self,
-        transaction_list: Vec<T>,
+        tx_list: Vec<T>,
         uncle_protect: bool,
         priority: Option<U256>,
     ) -> Result<TypedTransaction, Box<dyn Error + 'a>> {
         Ok(self
-            .run(
-                self.parse_transaction_list(transaction_list, uncle_protect, priority)
-                    .await?,
-            )
+            .run(self.parse_tx_list(tx_list, uncle_protect, priority).await?)
             .from(self.client().address())
             .tx)
     }
 
-    async fn parse_transaction_list<T: Into<TypedTransaction>>(
+    async fn parse_tx_list<T: Into<TypedTransaction>>(
         &self,
-        transaction_list: Vec<T>,
+        tx_list: Vec<T>,
         uncle_protect: bool,
         priority: Option<U256>,
     ) -> Result<Bytes, Box<dyn Error + 'a>> {
         let mut call_list = Vec::new();
-        for transaction in transaction_list {
-            let transaction: TypedTransaction = transaction.into();
+        for tx in tx_list {
+            let tx: TypedTransaction = tx.into();
             call_list.push(abi::Token::Bytes(abi::encode(&[
-                abi::Token::Address(*transaction.to_addr().unwrap_or(&Address::zero())),
-                abi::Token::Uint(*transaction.value().unwrap_or(&U256::zero())),
-                abi::Token::Bytes(transaction.data().unwrap_or(&Bytes::from(vec![0])).to_vec()),
+                abi::Token::Address(*tx.to_addr().unwrap_or(&Address::zero())),
+                abi::Token::Uint(*tx.value().unwrap_or(&U256::zero())),
+                abi::Token::Bytes(tx.data().unwrap_or(&Bytes::from(vec![0])).to_vec()),
             ])));
         }
 

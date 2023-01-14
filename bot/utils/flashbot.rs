@@ -60,11 +60,11 @@ impl FlashBotUtil {
             .set_simulation_block(last_block_number)
             .set_simulation_timestamp(0);
 
-        for transaction in tx_list {
-            let mut transaction: TypedTransaction = transaction.into();
-            self.fill_transaction(&mut transaction, None).await?;
-            let signature = self.signer().sign_transaction(&transaction).await?;
-            bundle = bundle.push_transaction(transaction.rlp_signed(&signature));
+        for tx in tx_list {
+            let mut tx: TypedTransaction = tx.into();
+            self.fill_transaction(&mut tx, None).await?;
+            let signature = self.signer().sign_transaction(&tx).await?;
+            bundle = bundle.push_transaction(tx.rlp_signed(&signature));
         }
 
         Ok(bundle)
