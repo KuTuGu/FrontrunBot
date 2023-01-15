@@ -31,8 +31,7 @@ impl<'a, M: Middleware, S: Signer> ArbitrageUtil<'a, M, S> {
         client: &'a SignerMiddleware<M, S>,
     ) -> Result<ArbitrageUtil<'a, M, S>, Box<dyn Error + 'a>> {
         Ok(Self {
-            inner: ArbitrageContract::deploy(Arc::new(client.clone()), ())
-                .unwrap()
+            inner: ArbitrageContract::deploy(Arc::new(client.clone()), ())?
                 .send()
                 .await?,
             client,
@@ -69,7 +68,11 @@ impl<'a, M: Middleware, S: Signer> ArbitrageUtil<'a, M, S> {
 
         let block_hash = if uncle_protect {
             let last_block_number = self.client.get_block_number().await?;
-            let block = self.client.get_block(last_block_number).await?.unwrap();
+            let block = self
+                .client
+                .get_block(last_block_number)
+                .await?
+                .ok_or("Get block number error")?;
             block.hash.unwrap()
         } else {
             TxHash::zero()
