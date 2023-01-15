@@ -2,7 +2,6 @@ use ethers::prelude::*;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ops::Deref;
-use std::ops::Sub;
 
 #[derive(Default)]
 struct AnalyzeAccountDiff {
@@ -63,7 +62,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
     ) -> Result<Option<(Vec<Vec<TransactionRequest>>, U256)>, Box<dyn Error + 'a>> {
         if let Some(tx) = self.get_transaction(tx_hash).await? {
             let block: Option<BlockNumber> = match tx.block_number {
-                Some(block_number) if rewind => Some(block_number.sub(1).into()),
+                Some(block_number) if rewind => Some((block_number - 1).into()),
                 Some(block_number) if !rewind => Some(block_number.into()),
                 _ => None,
             };
@@ -86,6 +85,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         let trace = self
             .trace_call(&tx, vec![TraceType::Trace, TraceType::StateDiff], block)
             .await?;
+
         if let Some(state_diff) = &trace.state_diff {
             if let Some(account_diff) = state_diff.0.get(&tx.from) {
                 let from_account_diff = AnalyzeAccountDiff::run(account_diff, Some(tx.nonce));

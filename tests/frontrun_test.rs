@@ -2,7 +2,6 @@ use arbitrage::utils::*;
 use dotenv::dotenv;
 use ethers::{prelude::*, utils::Anvil};
 use std::cmp;
-use std::ops::{Div, Mul};
 
 #[tokio::test]
 async fn frontrun() {
@@ -43,22 +42,19 @@ async fn frontrun() {
                     .to_tx(
                         tx_list,
                         true,
-                        Some(cmp::min(
-                            U256::from(12365048376181357_u64),
-                            profit.mul(7_i32).div(10),
-                        )),
+                        Some(cmp::min(U256::from(12365048376181357_u64), profit * 7 / 10)),
                     )
                     .await
                 {
-                    match anvil_client.send_transaction(tx, None).await {
-                        Ok(pending) => {
+                    let _ = anvil_client
+                        .send_transaction(tx, None)
+                        .await
+                        .map(|pending| async {
                             println!(
                                 "Transaction receipt: {:#?}",
                                 pending.await.unwrap().unwrap()
-                            );
-                        }
-                        Err(_) => {}
-                    };
+                            )
+                        });
                 }
             }
         },

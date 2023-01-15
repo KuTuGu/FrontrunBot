@@ -34,12 +34,10 @@ async fn main() {
                         for tx_list in tx_queue {
                             // Without priority fee, all simulations will fail
                             if let Ok(tx) = arbitrage.to_tx(tx_list, true, None).await {
-                                match flashbot.run(vec![tx]).await {
-                                    Ok(hash) => {
-                                        println!("Transaction hash: {hash:#?}");
-                                    }
-                                    Err(_) => {}
-                                };
+                                let _ = flashbot
+                                    .run(vec![tx])
+                                    .await
+                                    .map(|hash| println!("Transaction hash: {hash:#?}"));
                             }
                         }
                     })
