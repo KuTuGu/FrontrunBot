@@ -60,15 +60,18 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         &self,
         tx_hash: TxHash,
         rewind: bool,
-    ) -> Result<Option<Vec<Vec<TransactionRequest>>>, Box<dyn Error + 'a>> {
+    ) -> Result<Option<(Vec<Vec<TransactionRequest>>, U256)>, Box<dyn Error + 'a>> {
         if let Some(tx) = self.get_transaction(tx_hash).await? {
             let block: Option<BlockNumber> = match tx.block_number {
                 Some(block_number) if rewind => Some(block_number.sub(1).into()),
                 Some(block_number) if !rewind => Some(block_number.into()),
                 _ => None,
             };
-            if let Some(trace) = self.get_valuable_trace(tx, block).await? {
-                return Ok(self.trace_to_tx(&trace));
+            if let Some((trace, profit)) = self.get_valuable_trace(tx, block).await? {
+                let tx_queue = self.trace_to_tx(&trace);
+                if tx_queue.len() > 0 {
+                    return Ok(Some((tx_queue, profit)));
+                }
             };
         }
 
@@ -79,7 +82,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         &self,
         tx: Transaction,
         block: Option<BlockNumber>,
-    ) -> Result<Option<BlockTrace>, Box<dyn Error + 'a>> {
+    ) -> Result<Option<(BlockTrace, U256)>, Box<dyn Error + 'a>> {
         let trace = self
             .trace_call(&tx, vec![TraceType::Trace, TraceType::StateDiff], block)
             .await?;
@@ -87,7 +90,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
             if let Some(account_diff) = state_diff.0.get(&tx.from) {
                 let from_account_diff = AnalyzeAccountDiff::run(account_diff, Some(tx.nonce));
                 if from_account_diff.increase_balance && !from_account_diff.invalid_nonce {
-                    return Ok(Some(trace));
+                    return Ok(Some((trace, from_account_diff.balance_diff)));
                 };
 
                 if let Some(to) = tx.to {
@@ -97,7 +100,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
                             && !to_account_diff.invalid_nonce
                             && to_account_diff.balance_diff > from_account_diff.balance_diff
                         {
-                            return Ok(Some(trace));
+                            return Ok(Some((trace, to_account_diff.balance_diff)));
                         };
                     }
                 }
@@ -113,8 +116,8 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
     // e.g., for flashloan, loan first to ensure sufficient tokens.
     // Because the `flashloan` function simulate basically fails (callback interface / calldata format).
     // And what we expect to simulate is subtrace, so you have to prepare funds yourself firstly.
-    fn trace_to_tx(&self, trace: &BlockTrace) -> Option<Vec<Vec<TransactionRequest>>> {
-        let mut tx_list = Vec::new();
+    fn trace_to_tx(&self, trace: &BlockTrace) -> Vec<Vec<TransactionRequest>> {
+        let mut tx_queue = Vec::new();
         if let Some(trace_list) = &trace.trace {
             let mut trace_map = HashMap::new();
             for trace in trace_list {
@@ -128,7 +131,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
             // origin call
             let origin_call = trace_map.get(&0).unwrap();
             if let Some(tx) = self.parse_tx_trace(origin_call) {
-                tx_list.push(vec![tx]);
+                tx_queue.push(vec![tx]);
             }
             // internal call
             let mut internal_tx_list = Vec::new();
@@ -141,15 +144,11 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
                 }
             }
             if internal_tx_list.len() > 0 {
-                tx_list.push(internal_tx_list);
+                tx_queue.push(internal_tx_list);
             }
         }
 
-        if tx_list.len() > 0 {
-            Some(tx_list)
-        } else {
-            None
-        }
+        tx_queue
     }
 
     fn parse_tx_trace(&self, trace: &TransactionTrace) -> Option<TransactionRequest> {

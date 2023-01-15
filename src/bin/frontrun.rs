@@ -29,9 +29,9 @@ async fn main() {
             let arbitrage = &arbitrage;
             return async move {
                 let tx_hash = tx_hash.clone();
-                if let Ok(Some(tx_list_queue)) = simulate.run(tx_hash, false).await {
-                    log(flashbot, arbitrage.address(), tx_hash, || async {
-                        for tx_list in tx_list_queue {
+                if let Ok(Some((tx_queue, profit))) = simulate.run(tx_hash, false).await {
+                    log_profit(flashbot, arbitrage.address(), tx_hash, profit, || async {
+                        for tx_list in tx_queue {
                             // Without priority fee, all simulations will fail
                             if let Ok(tx) = arbitrage.to_tx(tx_list, true, None).await {
                                 match flashbot.run(vec![tx]).await {

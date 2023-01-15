@@ -6,10 +6,11 @@ pub fn get_env(name: &str) -> String {
     env::var(name).expect(&format!("Expect environment variable <{}>", name))
 }
 
-pub async fn log<M: Middleware, S: Signer, Fut: Future<Output = ()>, F: FnOnce() -> Fut>(
+pub async fn log_profit<M: Middleware, S: Signer, Fut: Future<Output = ()>, F: FnOnce() -> Fut>(
     client: &SignerMiddleware<M, S>,
     address: Address,
     tx_hash: TxHash,
+    profit: U256,
     handle: F,
 ) {
     println!("\n--------------- Simulate {tx_hash:?} ---------------");
@@ -18,8 +19,10 @@ pub async fn log<M: Middleware, S: Signer, Fut: Future<Output = ()>, F: FnOnce()
     handle().await;
 
     let balance_after = client.get_balance(address, None).await.unwrap();
-    println!("\nBalance before: {:?} {:?}", address, balance_before);
-    println!("Balance after:  {:?} {:?}", address, balance_after);
-    println!("Balance diff:   {:?}", balance_after - balance_before);
+    println!("");
+    println!("Expected profit: {profit:?}");
+    println!("Balance before:  {:?} {:?}", address, balance_before);
+    println!("Balance after:   {:?} {:?}", address, balance_after);
+    println!("Balance diff:    {:?}", balance_after - balance_before);
     println!("----------------{:-^75}----------------\n", "");
 }

@@ -1,6 +1,8 @@
 use arbitrage::utils::*;
 use dotenv::dotenv;
 use ethers::{prelude::*, utils::Anvil};
+use std::cmp;
+use std::ops::{Div, Mul};
 
 #[tokio::test]
 async fn frontrun() {
@@ -27,13 +29,25 @@ async fn frontrun() {
     let client = SignerMiddleware::new(provider, wallet.clone());
     let simulate = Simulate::init(&client, Some(arbitrage.address()));
     let tx_hash = TX_HASH.parse::<TxHash>().unwrap();
-    if let Ok(Some(tx_list_queue)) = simulate.run(tx_hash, true).await {
-        log(&anvil_client, arbitrage.address(), tx_hash, || async {
-            for tx_list in tx_list_queue {
+    let (tx_queue, profit) = simulate.run(tx_hash, true).await.unwrap().unwrap();
+    log_profit(
+        &anvil_client,
+        arbitrage.address(),
+        tx_hash,
+        profit,
+        || async {
+            for tx_list in tx_queue {
                 // No test for flashbot, for more detail, see:
                 // https://github.com/foundry-rs/foundry/issues/2089
                 if let Ok(tx) = arbitrage
-                    .to_tx(tx_list, true, Some(U256::from(12365048376181357_u64)))
+                    .to_tx(
+                        tx_list,
+                        true,
+                        Some(cmp::min(
+                            U256::from(12365048376181357_u64),
+                            profit.mul(7_i32).div(10),
+                        )),
+                    )
                     .await
                 {
                     match anvil_client.send_transaction(tx, None).await {
@@ -47,7 +61,7 @@ async fn frontrun() {
                     };
                 }
             }
-        })
-        .await;
-    };
+        },
+    )
+    .await;
 }
