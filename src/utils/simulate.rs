@@ -1,37 +1,10 @@
+mod state;
+mod strategy;
+
 use ethers::prelude::*;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ops::Deref;
-
-#[derive(Default)]
-struct AnalyzeAccountDiff {
-    pub increase_balance: bool,
-    pub balance_diff: U256,
-    pub invalid_nonce: bool,
-}
-
-impl AnalyzeAccountDiff {
-    fn run(diff: &AccountDiff, nonce: Option<U256>) -> Self {
-        let mut increase_balance = false;
-        let mut balance_diff = U256::zero();
-
-        if let Diff::Changed(ChangedType { from, to }) = diff.balance {
-            increase_balance = to > from;
-            balance_diff = from.abs_diff(to);
-        }
-
-        Self {
-            increase_balance,
-            balance_diff,
-            // The difference means that the tx is invalid, such as being included in the block, canceled by other txs, etc.
-            // The difference will also cause an exception balance diff (unclear why)
-            invalid_nonce: match diff.nonce {
-                Diff::Changed(ChangedType { from, to: _ }) if from != nonce.unwrap_or(from) => true,
-                _ => false,
-            },
-        }
-    }
-}
 
 pub struct Simulate<'a, M, S> {
     inner: &'a SignerMiddleware<M, S>,
@@ -66,8 +39,8 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
                 Some(block_number) if !rewind => Some(block_number.into()),
                 _ => None,
             };
-            if let Some((trace, profit)) = self.get_valuable_trace(tx, block).await? {
-                let tx_queue = self.trace_to_tx(&trace);
+            if let Some((trace, profit)) = self.is_valuable(tx, block).await? {
+                let tx_queue = self.to_tx_queue(&trace);
                 if tx_queue.len() > 0 {
                     return Ok(Some((tx_queue, profit)));
                 }
@@ -77,32 +50,27 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         Ok(None)
     }
 
-    async fn get_valuable_trace(
+    // Analyze whether tx is valuable according to different strategies
+    // Support customize and optimize pruning for different scene.
+    async fn is_valuable(
         &self,
         tx: Transaction,
         block: Option<BlockNumber>,
     ) -> Result<Option<(BlockTrace, U256)>, Box<dyn Error + 'a>> {
-        let trace = self
-            .trace_call(&tx, vec![TraceType::Trace, TraceType::StateDiff], block)
-            .await?;
+        let mut profit = U256::zero();
+        // e.g., prune for native token transfer.
+        if strategy::transfer::run(&tx) {
+            // e.g., for flashloan, loan first to ensure sufficient tokens.
+            if strategy::flashloan::run(&tx) {
+                let trace = self
+                    .trace_call(&tx, vec![TraceType::Trace, TraceType::StateDiff], block)
+                    .await?;
 
-        if let Some(state_diff) = &trace.state_diff {
-            if let Some(account_diff) = state_diff.0.get(&tx.from) {
-                let from_account_diff = AnalyzeAccountDiff::run(account_diff, Some(tx.nonce));
-                if from_account_diff.increase_balance && !from_account_diff.invalid_nonce {
-                    return Ok(Some((trace, from_account_diff.balance_diff)));
-                };
+                state::eth::run(&tx, &trace).map(|eth| profit += eth);
+                state::token::run(&tx, &trace).map(|eth| profit += eth);
 
-                if let Some(to) = tx.to {
-                    if let Some(account_diff) = state_diff.0.get(&to) {
-                        let to_account_diff = AnalyzeAccountDiff::run(account_diff, None);
-                        if to_account_diff.increase_balance
-                            && !to_account_diff.invalid_nonce
-                            && to_account_diff.balance_diff > from_account_diff.balance_diff
-                        {
-                            return Ok(Some((trace, to_account_diff.balance_diff)));
-                        };
-                    }
+                if !profit.is_zero() {
+                    return Ok(Some((trace, profit)));
                 }
             }
         }
@@ -110,13 +78,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         Ok(None)
     }
 
-    // Strictly judge whether each trace or subtrace is executable.
-    // Or you can customize and optimize pruning for different scene.
-    // e.g., for native token withdraw, no consider.
-    // e.g., for flashloan, loan first to ensure sufficient tokens.
-    // Because the `flashloan` function simulate basically fails (callback interface / calldata format).
-    // And what we expect to simulate is subtrace, so you have to prepare funds yourself firstly.
-    fn trace_to_tx(&self, trace: &BlockTrace) -> Vec<Vec<TransactionRequest>> {
+    fn to_tx_queue(&self, trace: &BlockTrace) -> Vec<Vec<TransactionRequest>> {
         let mut tx_queue = Vec::new();
         if let Some(trace_list) = &trace.trace {
             let mut trace_map = HashMap::new();
@@ -130,13 +92,13 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
 
             // origin call
             let origin_call = trace_map.get(&0).unwrap();
-            if let Some(tx) = self.parse_tx_trace(origin_call) {
+            if let Some(tx) = self.to_tx(origin_call) {
                 tx_queue.push(vec![tx]);
             }
             // internal call
             let mut internal_tx_list = Vec::new();
             for i in 1..=origin_call.subtraces {
-                if let Some(tx) = self.parse_tx_trace(trace_map.get(&i).unwrap()) {
+                if let Some(tx) = self.to_tx(trace_map.get(&i).unwrap()) {
                     internal_tx_list.push(tx);
                 } else {
                     // Part of the trace simulation failed, can still going?
@@ -151,7 +113,7 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         tx_queue
     }
 
-    fn parse_tx_trace(&self, trace: &TransactionTrace) -> Option<TransactionRequest> {
+    fn to_tx(&self, trace: &TransactionTrace) -> Option<TransactionRequest> {
         match &trace.action {
             Action::Call(data) => {
                 return Some(TransactionRequest {
