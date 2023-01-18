@@ -12,3 +12,4 @@ dotenv = { version = "0.15.0", features = ["cli"] }
 futures = "0.3.25"
 tokio = "1.22.0"
 url = "2.3.1"
+uniswap_v3_math = "0.2.22"
