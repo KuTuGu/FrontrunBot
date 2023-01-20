@@ -74,8 +74,8 @@ contract NotFlationTokenScript is Test {
         IERC20(token).transfer(to, amount);
 
         if (
-            (IERC20(token).balanceOf(from) != balance_from - amount) ||
-            (IERC20(token).balanceOf(to) != balance_to + amount) ||
+            (IERC20(token).balanceOf(from) != (from != to ? balance_from - amount : balance_from)) ||
+            (IERC20(token).balanceOf(to) != (from != to ? balance_to + amount : balance_to)) ||
             (from != lp && to != lp && IERC20(token).balanceOf(lp) != balance_lp)
         ) {
             notFlationTokenMap[token] = true;
