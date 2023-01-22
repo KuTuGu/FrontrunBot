@@ -2,9 +2,9 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import "contract//Arbitrage.sol";
+import "contract/Arbitrage.sol";
 
-contract NotFlationTokenScript is Test {
+contract NotFlationTokenTest is Test {
     struct Token {
         address addr;
         address lp;
@@ -12,14 +12,8 @@ contract NotFlationTokenScript is Test {
 
     mapping (address => bool) public notFlationTokenMap;
 
-    function run() public {
+    function testETHNotFlationToken() public {
         vm.createSelectFork("https://rpc.ankr.com/eth", 16428369);
-        run_eth();
-        vm.createSelectFork("https://rpc.ankr.com/bsc", 24912666);
-        run_bsc();
-    }
-
-    function run_eth() public {
         // 0xa806617cdd8ed760ed25cec61abf642f4889749c3cede45c46f27d60f0941bd1
         address QTN = 0xC9fa8F4CFd11559b50c5C7F6672B9eEa2757e1bd;
         // 0xd099a41830b964e93415e9a8607cd92567e40d3eeb491d52f3b66eee6b0357eb
@@ -46,7 +40,8 @@ contract NotFlationTokenScript is Test {
         assert(notFlationTokenMap[WETH] == false);
     }
 
-    function run_bsc() public {
+    function testBSCNotFlationToken() public {
+        vm.createSelectFork("https://rpc.ankr.com/bsc", 24912666);
         // 0x5058c820fa0bb0daff2bd1b30151cf84c618dffe123546223b7089c8c2e18331
         address THOREUM = 0x79Fe086a4C03C5E38FF8074DEA9Ee0a18dC1AF4F;
         address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
@@ -55,7 +50,7 @@ contract NotFlationTokenScript is Test {
             Token(WBNB, 0x1CEa83EC5E48D9157fCAe27a19807BeF79195Ce1)
         ];
 
-        for (uint i = 0;i < TOKEN_LIST.length; i++) {
+        for (uint16 i = 0;i < TOKEN_LIST.length;i++) {
             // ignore error
             address(this).call(abi.encodeWithSignature("check((address,address))", TOKEN_LIST[i]));
         }
@@ -99,12 +94,12 @@ contract NotFlationTokenScript is Test {
         IERC20(token).transfer(to, amount);
 
         if (
-            (IERC20(token).balanceOf(from) != (from != to ? balance_from - amount : balance_from)) ||
-            (IERC20(token).balanceOf(to) != (from != to ? balance_to + amount : balance_to)) ||
+            (from != to && IERC20(token).balanceOf(from) != balance_from - amount) ||
+            (from == to && IERC20(token).balanceOf(from) > balance_from) ||
+            (IERC20(token).balanceOf(to) > (from != to ? balance_to + amount : balance_to)) ||
             (from != lp && to != lp && IERC20(token).balanceOf(lp) != balance_lp)
         ) {
             notFlationTokenMap[token] = true;
-            return;
         }
     }
 }
