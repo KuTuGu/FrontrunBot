@@ -2,15 +2,25 @@ mod state;
 mod strategy;
 
 use ethers::prelude::*;
+use state::{base::AnalyzeState, eth::AnalyzeEth, token::AnalyzeToken};
 use std::collections::HashMap;
 use std::error::Error;
+use std::iter::Sum;
 use std::ops::Deref;
+
+struct SumU256(U256);
+impl Sum for SumU256 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self(U256::zero()), |a, b| Self(a.0 + b.0))
+    }
+}
 
 pub type SimulateTrace = BlockTrace;
 
 pub struct Simulate<'a, M, S> {
     inner: &'a SignerMiddleware<M, S>,
     contract: Option<Address>,
+    state_analysis: Vec<Box<dyn AnalyzeState<'a, M, S>>>,
 }
 
 impl<'a, M, S> Deref for Simulate<'a, M, S> {
@@ -27,6 +37,10 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         Self {
             inner: client,
             contract,
+            state_analysis: vec![
+                Box::new(AnalyzeEth::init(client).unwrap()),
+                Box::new(AnalyzeToken::init(client).unwrap()),
+            ],
         }
     }
 
@@ -59,15 +73,18 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         tx: Transaction,
         block: Option<BlockNumber>,
     ) -> Result<Option<(SimulateTrace, U256)>, Box<dyn Error + 'a>> {
-        let mut profit = U256::zero();
         // e.g., prune for native token transfer.
         if strategy::transfer::run(&tx) {
             // e.g., for flashloan, loan first to ensure sufficient tokens.
             if strategy::flashloan::run(&tx) {
                 let trace = self.to_trace(&tx, block).await?;
 
-                state::eth::run(&tx, &trace).map(|eth| profit += eth);
-                state::token::run(&tx, &trace).map(|eth| profit += eth);
+                let profit: U256 = self
+                    .state_analysis
+                    .iter()
+                    .map(|a| SumU256(a.run(&tx, &trace).unwrap_or_default()))
+                    .sum::<SumU256>()
+                    .0;
 
                 if !profit.is_zero() {
                     return Ok(Some((trace, profit)));

@@ -1,4 +1,13 @@
+use crate::utils::SimulateTrace;
 use ethers::prelude::*;
+use std::error::Error;
+
+pub trait AnalyzeState<'a, M, S> {
+    fn init(client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>>
+    where
+        Self: Sized;
+    fn run(&self, tx: &Transaction, trace: &SimulateTrace) -> Option<U256>;
+}
 
 #[derive(Default, Debug)]
 pub struct DiffAnalysis {
