@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::ops::Deref;
 
+pub type SimulateTrace = BlockTrace;
+
 pub struct Simulate<'a, M, S> {
     inner: &'a SignerMiddleware<M, S>,
     contract: Option<Address>,
@@ -56,15 +58,13 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         &self,
         tx: Transaction,
         block: Option<BlockNumber>,
-    ) -> Result<Option<(BlockTrace, U256)>, Box<dyn Error + 'a>> {
+    ) -> Result<Option<(SimulateTrace, U256)>, Box<dyn Error + 'a>> {
         let mut profit = U256::zero();
         // e.g., prune for native token transfer.
         if strategy::transfer::run(&tx) {
             // e.g., for flashloan, loan first to ensure sufficient tokens.
             if strategy::flashloan::run(&tx) {
-                let trace = self
-                    .trace_call(&tx, vec![TraceType::Trace, TraceType::StateDiff], block)
-                    .await?;
+                let trace = self.to_trace(&tx, block).await?;
 
                 state::eth::run(&tx, &trace).map(|eth| profit += eth);
                 state::token::run(&tx, &trace).map(|eth| profit += eth);
@@ -78,7 +78,27 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         Ok(None)
     }
 
-    fn to_tx_queue(&self, trace: &BlockTrace) -> Vec<Vec<TransactionRequest>> {
+    async fn to_trace(
+        &self,
+        tx: &Transaction,
+        block: Option<BlockNumber>,
+    ) -> Result<SimulateTrace, Box<dyn Error + 'a>> {
+        // only parity node support `trace_call`, recommend `ankr` rpc. (Sometimes it fails, need to retry)
+        let trace = self
+            .trace_call(tx, vec![TraceType::Trace, TraceType::StateDiff], block)
+            .await?;
+
+        // only geth node support `debug_traceCall`
+        // let mut opts = GethDebugTracingOptions::default();
+        // opts.tracer = Some("callTracer".into());
+        // let trace = self
+        //     .debug_trace_call(&tx, block.map(|n| BlockId::Number(n)), opts)
+        //     .await?;
+
+        Ok(trace)
+    }
+
+    fn to_tx_queue(&self, trace: &SimulateTrace) -> Vec<Vec<TransactionRequest>> {
         let mut tx_queue = Vec::new();
         if let Some(trace_list) = &trace.trace {
             let mut trace_map = HashMap::new();

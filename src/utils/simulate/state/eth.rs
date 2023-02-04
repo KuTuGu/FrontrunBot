@@ -1,8 +1,9 @@
 use super::base::DiffAnalysis;
+use crate::utils::SimulateTrace;
 use ethers::prelude::*;
 
 // Analyze whether the native token is profitable.
-pub fn run(tx: &Transaction, trace: &BlockTrace) -> Option<U256> {
+pub fn run(tx: &Transaction, trace: &SimulateTrace) -> Option<U256> {
     let mut profit = U256::zero();
 
     if let Some(state_diff) = &trace.state_diff {
