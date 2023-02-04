@@ -19,7 +19,9 @@ async fn main() {
     let flashbot = FlashBotUtil::init(provider, wallet).unwrap();
 
     let arbitrage = ArbitrageUtil::init(&flashbot, contract);
-    let simulate = Simulate::init(&flashbot, Some(arbitrage.address()));
+    let simulate = Simulate::init(&flashbot, Some(arbitrage.address()))
+        .await
+        .unwrap();
     let listen_poll = ListenPool::init(&wss_url, Some(1)).await;
 
     listen_poll

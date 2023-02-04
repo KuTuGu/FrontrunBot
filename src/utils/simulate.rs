@@ -2,6 +2,7 @@ mod state;
 mod strategy;
 
 use ethers::prelude::*;
+use futures::future::join_all;
 use state::{base::AnalyzeState, eth::AnalyzeEth, token::AnalyzeToken};
 use std::collections::HashMap;
 use std::error::Error;
@@ -33,15 +34,18 @@ impl<'a, M, S> Deref for Simulate<'a, M, S> {
 
 impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
     // can use contract as a middleware to check balance, if not increase then revert
-    pub fn init(client: &'a SignerMiddleware<M, S>, contract: Option<Address>) -> Self {
-        Self {
+    pub async fn init(
+        client: &'a SignerMiddleware<M, S>,
+        contract: Option<Address>,
+    ) -> Result<Simulate<'a, M, S>, Box<dyn Error + 'a>> {
+        Ok(Self {
             inner: client,
             contract,
             state_analysis: vec![
-                Box::new(AnalyzeEth::init(client).unwrap()),
-                Box::new(AnalyzeToken::init(client).unwrap()),
+                Box::new(AnalyzeEth::init(client).await?),
+                Box::new(AnalyzeToken::init(client).await?),
             ],
-        }
+        })
     }
 
     pub async fn run(
@@ -79,10 +83,17 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
             if strategy::flashloan::run(&tx) {
                 let trace = self.to_trace(&tx, block).await?;
 
-                let profit: U256 = self
-                    .state_analysis
-                    .iter()
-                    .map(|a| SumU256(a.run(&tx, &trace).unwrap_or_default()))
+                let analysis = self.state_analysis.iter().map(|a| async {
+                    a.run(&tx, &trace)
+                        .await
+                        .ok()
+                        .unwrap_or_default()
+                        .unwrap_or_default()
+                });
+                let profit = join_all(analysis)
+                    .await
+                    .into_iter()
+                    .map(|p| SumU256(p))
                     .sum::<SumU256>()
                     .0;
 

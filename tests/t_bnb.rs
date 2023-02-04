@@ -27,7 +27,9 @@ async fn t_bnb() {
 
     let provider = Provider::<Http>::connect(HTTP_RPC_URL).await;
     let client = SignerMiddleware::new(provider, wallet.clone());
-    let simulate = Simulate::init(&client, Some(arbitrage.address()));
+    let simulate = Simulate::init(&client, Some(arbitrage.address()))
+        .await
+        .unwrap();
     let tx_hash = TX_HASH.parse::<TxHash>().unwrap();
 
     // bnb forked at geth, does not support trace_call

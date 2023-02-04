@@ -25,7 +25,9 @@ async fn t_16384470() {
 
     let provider = Provider::<Http>::connect(HTTP_RPC_URL).await;
     let client = SignerMiddleware::new(provider, wallet.clone());
-    let simulate = Simulate::init(&client, Some(arbitrage.address()));
+    let simulate = Simulate::init(&client, Some(arbitrage.address()))
+        .await
+        .unwrap();
     let tx_hash = TX_HASH.parse::<TxHash>().unwrap();
 
     // Unable to detect contract creation and arbitrage in the same block

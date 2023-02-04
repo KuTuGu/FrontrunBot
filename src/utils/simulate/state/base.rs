@@ -1,12 +1,19 @@
 use crate::utils::SimulateTrace;
+use async_trait::async_trait;
 use ethers::prelude::*;
 use std::error::Error;
 
+#[async_trait]
 pub trait AnalyzeState<'a, M, S> {
-    fn init(client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>>
+    async fn init(client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>>
     where
         Self: Sized;
-    fn run(&self, tx: &Transaction, trace: &SimulateTrace) -> Option<U256>;
+
+    async fn run(
+        &self,
+        tx: &Transaction,
+        trace: &SimulateTrace,
+    ) -> Result<Option<U256>, Box<dyn Error + 'a>>;
 }
 
 #[derive(Default, Debug)]

@@ -1,17 +1,23 @@
 use super::base::{AnalyzeState, DiffAnalysis};
 use crate::utils::SimulateTrace;
+use async_trait::async_trait;
 use ethers::prelude::*;
 use std::error::Error;
 
 // Analyze whether the native token is profitable.
 pub struct AnalyzeEth;
 
+#[async_trait]
 impl<'a, M, S> AnalyzeState<'a, M, S> for AnalyzeEth {
-    fn init(client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>> {
+    async fn init(client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>> {
         Ok(Self)
     }
 
-    fn run(&self, tx: &Transaction, trace: &SimulateTrace) -> Option<U256> {
+    async fn run(
+        &self,
+        tx: &Transaction,
+        trace: &SimulateTrace,
+    ) -> Result<Option<U256>, Box<dyn Error + 'a>> {
         let mut profit = U256::zero();
 
         if let Some(state_diff) = &trace.state_diff {
@@ -36,9 +42,9 @@ impl<'a, M, S> AnalyzeState<'a, M, S> for AnalyzeEth {
         }
 
         if profit.is_zero() {
-            None
+            Ok(None)
         } else {
-            Some(profit)
+            Ok(Some(profit))
         }
     }
 }

@@ -26,7 +26,9 @@ async fn t_16298449() {
 
     let provider = Provider::<Http>::connect(HTTP_RPC_URL).await;
     let client = SignerMiddleware::new(provider, wallet.clone());
-    let simulate = Simulate::init(&client, Some(arbitrage.address()));
+    let simulate = Simulate::init(&client, Some(arbitrage.address()))
+        .await
+        .unwrap();
     let tx_hash = TX_HASH.parse::<TxHash>().unwrap();
     let (tx_queue, profit) = simulate.run(tx_hash, true).await.unwrap().unwrap();
     log_profit(
