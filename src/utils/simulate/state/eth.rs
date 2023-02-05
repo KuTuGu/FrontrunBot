@@ -9,7 +9,7 @@ pub struct AnalyzeEth;
 
 #[async_trait]
 impl<'a, M, S> AnalyzeState<'a, M, S> for AnalyzeEth {
-    async fn init(client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>> {
+    async fn init(_client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>> {
         Ok(Self)
     }
 
