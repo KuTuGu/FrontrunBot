@@ -24,7 +24,7 @@ contract NotFlationTokenTest is Test {
         uint256 pair_reverse;
     }
 
-    mapping (address => bool) public notFlationTokenMap;
+    mapping(address => bool) public notFlationTokenMap;
 
     function testETHNotFlationToken1() public {
         vm.createSelectFork("https://rpc.ankr.com/eth", 16428369);
@@ -39,7 +39,7 @@ contract NotFlationTokenTest is Test {
             Token(WETH, 0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc)
         ];
 
-        for (uint i = 0;i < TOKEN_LIST.length; i++) {
+        for (uint256 i = 0; i < TOKEN_LIST.length; i++) {
             // ignore error
             address(this).call(abi.encodeWithSignature("check((address,address))", TOKEN_LIST[i]));
         }
@@ -58,11 +58,9 @@ contract NotFlationTokenTest is Test {
         vm.createSelectFork("https://rpc.ankr.com/eth");
         address HIMEI = 0x81b6E6EE0Bd303A1f1Ef7D63f9A071F7eF2abe09;
 
-        Token[1] memory TOKEN_LIST = [
-            Token(HIMEI, 0x4a449fFD26332170b19450FB573864407385B2d4)
-        ];
+        Token[1] memory TOKEN_LIST = [Token(HIMEI, 0x4a449fFD26332170b19450FB573864407385B2d4)];
 
-        for (uint i = 0;i < TOKEN_LIST.length; i++) {
+        for (uint256 i = 0; i < TOKEN_LIST.length; i++) {
             // ignore error
             address(this).call(abi.encodeWithSignature("check((address,address))", TOKEN_LIST[i]));
         }
@@ -81,7 +79,7 @@ contract NotFlationTokenTest is Test {
             Token(WBNB, 0x1CEa83EC5E48D9157fCAe27a19807BeF79195Ce1)
         ];
 
-        for (uint16 i = 0;i < TOKEN_LIST.length;i++) {
+        for (uint16 i = 0; i < TOKEN_LIST.length; i++) {
             // ignore error
             address(this).call(abi.encodeWithSignature("check((address,address))", TOKEN_LIST[i]));
         }
@@ -102,7 +100,7 @@ contract NotFlationTokenTest is Test {
         uint256 balance_this = 1 * (10 ** decimal);
         deal(token, address(this), balance_this);
         assert(IERC20(token).balanceOf(address(this)) == balance_this);
-        
+
         // transfer from this to lp pool
         uint256 amount = balance_this / 2;
         _transfer(_token, address(this), address(lp), amount);
@@ -114,7 +112,7 @@ contract NotFlationTokenTest is Test {
         _transfer(_token, address(this), address(this), amount);
     }
 
-    function _transfer(Token calldata _token, address from, address to, uint256 amount) internal {        
+    function _transfer(Token calldata _token, address from, address to, uint256 amount) internal {
         BalanceInfo memory balance_before = _getBalanceInfo(_token, from, to);
 
         vm.prank(from);
@@ -123,16 +121,23 @@ contract NotFlationTokenTest is Test {
         BalanceInfo memory balance_after = _getBalanceInfo(_token, from, to);
 
         if (
-            (from != to && balance_after.from != balance_before.from - amount) ||
-            (from == to && balance_after.from > balance_before.from) ||
-            (to != _token.lp && balance_after.to > (from != to ? balance_before.to + amount : balance_before.to)) ||
-            (balance_after.base_reverse * balance_before.pair_reverse != balance_after.pair_reverse * balance_before.base_reverse)
+            (from != to && balance_after.from != balance_before.from - amount)
+                || (from == to && balance_after.from > balance_before.from)
+                || (to != _token.lp && balance_after.to > (from != to ? balance_before.to + amount : balance_before.to))
+                || (
+                    balance_after.base_reverse * balance_before.pair_reverse
+                        != balance_after.pair_reverse * balance_before.base_reverse
+                )
         ) {
             notFlationTokenMap[_token.addr] = true;
         }
     }
 
-    function _getBalanceInfo(Token memory _token, address from, address to) view internal returns (BalanceInfo memory balanceInfo) {
+    function _getBalanceInfo(Token memory _token, address from, address to)
+        internal
+        view
+        returns (BalanceInfo memory balanceInfo)
+    {
         address token = _token.addr;
         address lp = _token.lp;
         bool swap = token == IUniswapV2Pair(lp).token1();

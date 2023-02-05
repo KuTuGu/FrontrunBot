@@ -30,37 +30,44 @@ contract ArbitrageTest is Test {
     function testCannotArbitrageByNotOwner() public TestCannotOperateByNotOwner {
         arbitrage.run(abi.encode(bytes32(""), 0, bytes("")));
     }
+
     function testCannotArbitrageByUncleBlock() public {
         vm.expectRevert(UncleBlock.selector);
         vm.roll(3);
         arbitrage.run(abi.encode(blockhash(block.number - 2), 0, bytes("")));
     }
+
     function testCannotArbitrageBySufficientIncome() public {
         vm.expectRevert(SufficientIncome.selector);
         arbitrage.run(abi.encode(bytes32(""), 0, bytes("")));
     }
+
     function testCannotRunNoCheckByNotOwner() public TestCannotOperateByNotOwner {
         arbitrage.run_no_check(bytes(""));
     }
+
     function testRunNoCheckByOwner() public {
         arbitrage.run_no_check(bytes(""));
     }
+
     function testFlashArbitrageByOwner() public {
         uint256 _lenderAmount = 1000 ether;
 
         bytes[] memory payloads = new bytes[](3);
-        payloads[0] = abi.encode(address(fakeERC20), 0, abi.encodeWithSignature(
-            "transferFrom(address,address,uint256)",
-            address(flashLender), address(arbitrage), _lenderAmount
-        ));
+        payloads[0] = abi.encode(
+            address(fakeERC20),
+            0,
+            abi.encodeWithSignature(
+                "transferFrom(address,address,uint256)", address(flashLender), address(arbitrage), _lenderAmount
+            )
+        );
         payloads[1] = abi.encode(address(fakeERC20), 0, abi.encodeWithSignature("exploit()", ""));
         payloads[2] = abi.encode(address(fakeERC20), 0, abi.encodeWithSignature("withdraw(uint256)", 1 ether));
 
         assertEq(address(arbitrage).balance, 0 ether);
         assertEq(fakeERC20.balanceOf(address(arbitrage)), 0 ether);
         flashLender.flashLoan(
-            arbitrage, address(fakeERC20), _lenderAmount,
-            abi.encode(blockhash(block.number - 1), 0, payloads)
+            arbitrage, address(fakeERC20), _lenderAmount, abi.encode(blockhash(block.number - 1), 0, payloads)
         );
         assertEq(address(arbitrage).balance, 1 ether);
         assertEq(fakeERC20.balanceOf(address(arbitrage)), 0 ether);
@@ -69,6 +76,7 @@ contract ArbitrageTest is Test {
     function testSetFlashLenderByOwner() public {
         arbitrage.setFlashLender(address(0));
     }
+
     function testCannotSetFlashLenderByNotOwner() public TestCannotOperateByNotOwner {
         arbitrage.setFlashLender(address(0));
     }
@@ -80,6 +88,7 @@ contract ArbitrageTest is Test {
         arbitrage.withdraw();
         assertEq(address(this).balance, 1 ether);
     }
+
     function testCannotWithdrawByNotOwner() public TestCannotOperateByNotOwner {
         arbitrage.withdraw();
     }
@@ -91,6 +100,7 @@ contract ArbitrageTest is Test {
         arbitrage.recoverERC20(address(fakeERC20));
         assertEq(fakeERC20.balanceOf(address(this)), _balance);
     }
+
     function testCannotRecoverERC20ByNotOwner() public TestCannotOperateByNotOwner {
         arbitrage.recoverERC20(address(0));
     }
@@ -99,7 +109,10 @@ contract ArbitrageTest is Test {
 }
 
 contract FakeERC20 is ERC20, Owned {
-    constructor(string memory _name, string memory _symbol, uint8 _decimals) ERC20(_name, _symbol, _decimals) Owned(msg.sender) {}
+    constructor(string memory _name, string memory _symbol, uint8 _decimals)
+        ERC20(_name, _symbol, _decimals)
+        Owned(msg.sender)
+    {}
 
     function exploit() external {
         if (balanceOf[msg.sender] >= 1000 ether) {
@@ -107,7 +120,7 @@ contract FakeERC20 is ERC20, Owned {
         }
     }
 
-    function deposit() payable external {
+    function deposit() external payable {
         _mint(msg.sender, msg.value);
     }
 
@@ -122,11 +135,14 @@ contract FlashLender is IERC3156FlashLender {
         return IERC20(token).balanceOf(address(this));
     }
 
-    function flashFee(address /* token */, uint256 amount) public pure returns (uint256) {
+    function flashFee(address, /* token */ uint256 amount) public pure returns (uint256) {
         return amount / 1000;
     }
 
-    function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data) external returns (bool) {
+    function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data)
+        external
+        returns (bool)
+    {
         require(amount <= maxFlashLoan(token), "FlashLender: Insufficient funds");
         uint256 fee = flashFee(token, amount);
         IERC20(token).approve(address(receiver), amount);

