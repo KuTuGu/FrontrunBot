@@ -5,6 +5,7 @@ use ethers::prelude::*;
 use futures::future::join_all;
 use state::{base::AnalyzeState, eth::AnalyzeEth, token::AnalyzeToken};
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 use std::iter::Sum;
 use std::ops::Deref;
@@ -16,12 +17,43 @@ impl Sum for SumU256 {
     }
 }
 
-pub type SimulateTrace = BlockTrace;
+// pub struct SimulateTrace =
+
+pub type ParityTrace = BlockTrace;
+pub type SimulateTrace = ParityTrace;
+struct SimulateBlockTrace(ParityTrace);
+struct SimulateGethTrace(GethTrace);
+
+// impl From<SimulateBlockTrace> for SimulateTrace {
+//     fn from(value: SimulateBlockTrace) -> Self {
+//         value.0
+//     }
+// }
+
+// impl From<SimulateGethTrace> for SimulateTrace {
+//     fn from(value: SimulateGethTrace) -> Self {
+
+//         Self {
+//             output: value,
+//             /// Transaction Trace
+//             pub trace: Option<Vec<TransactionTrace>>,
+//             /// Virtual Machine Execution Trace
+//             #[serde(rename = "vmTrace")]
+//             pub vm_trace: Option<VMTrace>,
+//             /// State Difference
+//             #[serde(rename = "stateDiff")]
+//             pub state_diff: Option<StateDiff>,
+//             /// Transaction Hash
+//             #[serde(rename = "transactionHash")]
+//             pub transaction_hash: Option<H256>,
+//         }
+//     }
+// }
 
 pub struct Simulate<'a, M, S> {
     inner: &'a SignerMiddleware<M, S>,
     contract: Option<Address>,
-    state_analysis: Vec<Box<dyn AnalyzeState<'a, M, S>>>,
+    state_analysis: Vec<Box<dyn AnalyzeState<'a, M, S> + 'a>>,
 }
 
 impl<'a, M, S> Deref for Simulate<'a, M, S> {
@@ -82,7 +114,6 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
             // e.g., for flashloan, loan first to ensure sufficient tokens.
             if strategy::flashloan::run(&tx) {
                 let trace = self.to_trace(&tx, block).await?;
-
                 let analysis = self.state_analysis.iter().map(|a| async {
                     a.run(&tx, &trace)
                         .await
@@ -111,19 +142,40 @@ impl<'a, M: Middleware + 'a, S: Signer + 'a> Simulate<'a, M, S> {
         tx: &Transaction,
         block: Option<BlockNumber>,
     ) -> Result<SimulateTrace, Box<dyn Error + 'a>> {
-        // only parity node support `trace_call`, recommend `ankr` rpc. (Sometimes it fails, need to retry)
-        let trace = self
-            .trace_call(tx, vec![TraceType::Trace, TraceType::StateDiff], block)
-            .await?;
+        let parity_node = env::var("PARITY_NODE").is_ok();
 
-        // only geth node support `debug_traceCall`
-        // let mut opts = GethDebugTracingOptions::default();
-        // opts.tracer = Some("callTracer".into());
-        // let trace = self
-        //     .debug_trace_call(&tx, block.map(|n| BlockId::Number(n)), opts)
-        //     .await?;
+        if parity_node {
+            // @dev only parity node support `trace_call`, recommend `ankr` rpc. (Sometimes it fails, need to retry)
+            // @dev `trace_call` doesn't support analyze non-native token.
+            Ok(self
+                .trace_call(
+                    tx,
+                    vec![TraceType::VmTrace, TraceType::Trace, TraceType::StateDiff],
+                    block,
+                )
+                .await?)
+        } else {
+            // @dev only geth node support `debug_traceCall`
+            let mut opts = GethDebugTracingCallOptions::default();
+            opts.tracing_options.disable_storage = Some(false);
+            opts.tracing_options.tracer = Some(GethDebugTracerType::BuiltInTracer(
+                GethDebugBuiltInTracerType::PreStateTracer,
+            ));
+            opts.tracing_options.tracer_config = Some(GethDebugTracerConfig::BuiltInTracer(
+                GethDebugBuiltInTracerConfig::PreStateTracer(PreStateConfig {
+                    diff_mode: Some(true),
+                }),
+            ));
 
-        Ok(trace)
+            if let GethTrace::Known(GethTraceFrame::PreStateTracer(PreStateFrame::Default(frame))) =
+                self.debug_trace_call(tx, block.map(|n| BlockId::Number(n)), opts)
+                    .await?
+            {
+                todo!();
+            } else {
+                unreachable!();
+            }
+        }
     }
 
     fn to_tx_queue(&self, trace: &SimulateTrace) -> Vec<Vec<TransactionRequest>> {

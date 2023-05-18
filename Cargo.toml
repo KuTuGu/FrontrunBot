@@ -14,3 +14,6 @@ tokio = "1.22.0"
 url = "2.3.1"
 async-trait = "0.1.64"
 futures = "0.3.26"
+
+[patch.crates-io]
+ethers = { git = "https://github.com/gakonst/ethers-rs" }
