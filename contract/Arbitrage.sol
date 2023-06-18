@@ -13,10 +13,25 @@ error CoinbaseCall();
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
-    function allowance(address owner, address spender) external view returns (uint256);
+
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint256);
+
     function approve(address spender, uint256 amount) external returns (bool);
+
     function decimals() external returns (uint8);
 }
 
@@ -30,9 +45,13 @@ interface IERC3156FlashBorrower {
      * @param data Arbitrary data structure, intended to contain user-defined parameters.
      * @return The keccak256 hash of "ERC3156FlashBorrower.onFlashLoan"
      */
-    function onFlashLoan(address initiator, address token, uint256 amount, uint256 fee, bytes calldata data)
-        external
-        returns (bytes32);
+    function onFlashLoan(
+        address initiator,
+        address token,
+        uint256 amount,
+        uint256 fee,
+        bytes calldata data
+    ) external returns (bytes32);
 }
 
 interface IERC3156FlashLender {
@@ -49,7 +68,10 @@ interface IERC3156FlashLender {
      * @param amount The amount of tokens lent.
      * @return The amount of `token` to be charged for the loan, on top of the returned principal.
      */
-    function flashFee(address token, uint256 amount) external view returns (uint256);
+    function flashFee(
+        address token,
+        uint256 amount
+    ) external view returns (uint256);
 
     /**
      * @dev Initiate a flash loan.
@@ -58,9 +80,12 @@ interface IERC3156FlashLender {
      * @param amount The amount of tokens lent.
      * @param data Arbitrary data structure, intended to contain user-defined parameters.
      */
-    function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data)
-        external
-        returns (bool);
+    function flashLoan(
+        IERC3156FlashBorrower receiver,
+        address token,
+        uint256 amount,
+        bytes calldata data
+    ) external returns (bool);
 }
 
 contract Arbitrage is Owned, IERC3156FlashBorrower {
@@ -88,10 +113,13 @@ contract Arbitrage is Owned, IERC3156FlashBorrower {
         _exec(data);
     }
 
-    function onFlashLoan(address, /* initiator */ address token, uint256 amount, uint256 fee, bytes calldata data)
-        public
-        returns (bytes32)
-    {
+    function onFlashLoan(
+        address,
+        /* initiator */ address token,
+        uint256 amount,
+        uint256 fee,
+        bytes calldata data
+    ) public returns (bytes32) {
         if (msg.sender != flashLender) revert FlashLenderCall();
 
         uint256 _allowance = IERC20(token).allowance(address(this), msg.sender);
@@ -107,7 +135,10 @@ contract Arbitrage is Owned, IERC3156FlashBorrower {
     }
 
     function recoverERC20(address token) external onlyOwner {
-        IERC20(token).transfer(msg.sender, IERC20(token).balanceOf(address(this)));
+        IERC20(token).transfer(
+            msg.sender,
+            IERC20(token).balanceOf(address(this))
+        );
     }
 
     receive() external payable {}
@@ -124,14 +155,22 @@ contract Arbitrage is Owned, IERC3156FlashBorrower {
     function _exec(bytes calldata data) internal {
         if (data.length > 0) {
             // parse data
-            (bytes32 _parentHash, uint256 _coinbaseFee, bytes[] memory _multicallData) =
-                abi.decode(data, (bytes32, uint256, bytes[]));
-            if ((_parentHash != bytes32("")) && (blockhash(block.number - 1) != _parentHash)) revert UncleBlock();
+            (
+                bytes32 _parentHash,
+                uint256 _coinbaseFee,
+                bytes[] memory _multicallData
+            ) = abi.decode(data, (bytes32, uint256, bytes[]));
+            if (
+                (_parentHash != bytes32("")) &&
+                (blockhash(block.number - 1) != _parentHash)
+            ) revert UncleBlock();
 
             // multicall
             for (uint256 i = 0; i < _multicallData.length; i++) {
-                (address _to, uint256 _value, bytes memory _data) =
-                    abi.decode(_multicallData[i], (address, uint256, bytes));
+                (address _to, uint256 _value, bytes memory _data) = abi.decode(
+                    _multicallData[i],
+                    (address, uint256, bytes)
+                );
                 _to.call{value: _value}(_data);
             }
 

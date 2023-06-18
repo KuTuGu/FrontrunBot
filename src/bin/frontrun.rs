@@ -1,51 +1,50 @@
-use arbitrage::utils::*;
+use arbitrage::{
+    executors::multi_bundle::MultiFlashbotsExecutor, strategies::frontrun::FrontrunStrategy,
+    utils::*,
+};
+use artemis_core::{collectors::mempool_collector::MempoolCollector, engine::Engine};
 use dotenv::dotenv;
 use ethers::prelude::*;
+use std::sync::Arc;
+use url::Url;
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
     let http_url = get_env("HTTP_RPC_URL");
     let wss_url = get_env("WSS_RPC_URL");
+    let relay_url = get_env("RELAY_URL").parse::<Url>().unwrap();
     let chain_id = get_env("CHAIN_ID").parse::<u16>().unwrap_or(1);
-    let contract = get_env("CONTRACT").parse::<Address>().unwrap();
+    let priority = get_env("PRIORITY").parse::<u64>().ok();
+    let contract = get_env("CONTRACT").parse::<Address>().ok();
     let private_key = get_env("PRIVATE_KEY").replace("0x", "");
 
-    let provider = Provider::<Http>::connect(&http_url).await;
+    let http_provider = Arc::new(Provider::<Http>::connect(&http_url).await);
+    let wss_provider = Arc::new(
+        Provider::<Ws>::connect(wss_url)
+            .await
+            .expect("Websocket connect error"),
+    );
     let wallet = private_key
         .parse::<LocalWallet>()
         .unwrap()
         .with_chain_id(chain_id);
-    let flashbot = FlashBotUtil::init(provider, wallet).unwrap();
 
-    let arbitrage = ArbitrageUtil::init(&flashbot, contract);
-    let simulate = Simulate::init(&flashbot, Some(arbitrage.address()))
-        .await
-        .unwrap();
-    let listen_poll = ListenPool::init(&wss_url, Some(1)).await;
-
-    listen_poll
-        .run(|tx_hash| {
-            let simulate = &simulate;
-            let flashbot = &flashbot;
-            let arbitrage = &arbitrage;
-            return async move {
-                let tx_hash = tx_hash.clone();
-                if let Ok(Some((tx_queue, profit))) = simulate.run(tx_hash, false).await {
-                    log_profit(flashbot, arbitrage.address(), tx_hash, profit, || async {
-                        for tx_list in tx_queue {
-                            // Without priority fee, all simulations will fail
-                            if let Ok(tx) = arbitrage.to_tx(tx_list, true, None).await {
-                                let _ = flashbot
-                                    .run(vec![tx])
-                                    .await
-                                    .map(|hash| println!("Transaction hash: {hash:#?}"));
-                            }
-                        }
-                    })
-                    .await;
-                };
-            };
-        })
-        .await;
+    let mut engine = Engine::new();
+    engine.add_collector(Box::new(MempoolCollector::new(Arc::clone(&wss_provider))));
+    engine.add_strategy(Box::new(FrontrunStrategy::new(
+        Arc::clone(&http_provider),
+        wallet.address(),
+        contract,
+        priority,
+        true,
+    )));
+    engine.add_executor(Box::new(MultiFlashbotsExecutor::new(
+        Arc::clone(&http_provider),
+        wallet,
+        LocalWallet::new(&mut rand::thread_rng()),
+        relay_url,
+    )));
+    let mut set = engine.run().await.unwrap();
+    while let Some(_) = set.join_next().await {}
 }

@@ -1,7 +1,3 @@
 {
-  "editor.formatOnSave": true,
-  "[solidity]": {
-    "editor.defaultFormatter": "JuanBlanco.solidity" 
-  },
-  "solidity.formatter": "forge",
+    "rust-analyzer.showUnlinkedFileNotification": false
 }

@@ -1,0 +1,121 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'arbitrage'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=arbitrage"
+                ],
+                "filter": {
+                    "name": "arbitrage",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'frontrun'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=frontrun",
+                    "--package=arbitrage"
+                ],
+                "filter": {
+                    "name": "frontrun",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'frontrun'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=frontrun",
+                    "--package=arbitrage"
+                ],
+                "filter": {
+                    "name": "frontrun",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 't_16298449'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=t_16298449",
+                    "--package=arbitrage"
+                ],
+                "filter": {
+                    "name": "t_16298449",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 't_bnb'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=t_bnb",
+                    "--package=arbitrage"
+                ],
+                "filter": {
+                    "name": "t_bnb",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 't_16384470'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=t_16384470",
+                    "--package=arbitrage"
+                ],
+                "filter": {
+                    "name": "t_16384470",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

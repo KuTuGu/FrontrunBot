@@ -1,19 +1,16 @@
-use crate::utils::SimulateTrace;
+use crate::strategies::frontrun::SimulateTrace;
+use anyhow::Result;
 use async_trait::async_trait;
 use ethers::prelude::*;
-use std::error::Error;
+use std::sync::Arc;
 
 #[async_trait]
-pub trait AnalyzeState<'a, M, S> {
-    async fn init(client: &'a SignerMiddleware<M, S>) -> Result<Self, Box<dyn Error + 'a>>
+pub trait AnalyzeState: Send + Sync {
+    fn new(client: Arc<Provider<Http>>) -> Self
     where
         Self: Sized;
 
-    async fn run(
-        &self,
-        tx: &Transaction,
-        trace: &SimulateTrace,
-    ) -> Result<Option<U256>, Box<dyn Error + 'a>>;
+    async fn run(&self, tx: &Transaction, trace: &SimulateTrace) -> Result<Option<U256>>;
 }
 
 #[derive(Default, Debug)]
@@ -24,7 +21,7 @@ pub struct DiffAnalysis {
 }
 
 impl DiffAnalysis {
-    pub fn init(diff: &AccountDiff, nonce: Option<U256>) -> Self {
+    pub fn new(diff: &AccountDiff, nonce: Option<U256>) -> Self {
         let mut increase_balance = false;
         let mut balance_diff = U256::zero();
 
